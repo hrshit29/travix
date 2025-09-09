@@ -1,0 +1,157 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Travix - Tourist Safety Monitoring Dashboard</title>
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link rel="stylesheet" href="style.css">
+    <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-auth-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore-compat.js"></script>
+</head>
+<body>
+    <div id="auth-container">
+        <div class="auth-box">
+            <h2 id="auth-title"><i class="fas fa-shield-alt"></i>Travix</h2>
+            <p id="auth-subtitle">Sign in to monitor your travels</p>
+            <div id="auth-error"></div>
+            <form id="login-form" class="auth-form">
+                <div class="form-group"><label for="login-email">Email</label><input type="email" id="login-email" required></div>
+                <div class="form-group"><label for="login-password">Password</label><input type="password" id="login-password" required></div>
+                <button type="submit">Login</button>
+            </form>
+            <form id="signup-form" class="auth-form">
+                <div class="form-group"><label for="signup-email">Email</label><input type="email" id="signup-email" required></div>
+                <div class="form-group"><label for="signup-password">Password</label><input type="password" id="signup-password" required></div>
+                <button type="submit">Create Account</button>
+            </form>
+            <div class="auth-toggle"><span id="toggle-text">Don't have an account?</span> <a id="toggle-link">Sign Up</a></div>
+            <div style="text-align: center; margin-top: 15px;">
+                 <button id="guest-login-btn" class="btn" style="background: var(--bg-tertiary); color: var(--text-secondary); width: auto; padding: 10px 20px;">Login as Guest</button>
+            </div>
+        </div>
+    </div>
+    
+    <div id="app-container">
+        <nav class="top-nav">
+            <div class="logo"><i class="fas fa-shield-alt"></i><span>Travix</span></div>
+             <div class="nav-items">
+                <a href="#" class="nav-item active" data-page="locations"><i class="fas fa-map-marker-alt"></i><span>Locations</span></a>
+                <a href="#" class="nav-item" data-page="collections"><i class="fas fa-layer-group"></i><span>Collections</span></a>
+                <a href="#" class="nav-item" data-page="world-travel"><i class="fas fa-globe"></i><span>World Travel</span></a>
+            </div>
+            <div class="user-section">
+                <div class="search-box">
+                    <i class="fas fa-search" style="color: var(--text-muted);"></i>
+                    <input type="text" placeholder="Search locations...">
+                </div>
+                <div class="user-info">
+                    <div class="user-avatar" id="user-avatar"></div>
+                </div>
+                <button id="logout-btn" title="Logout"><i class="fas fa-sign-out-alt"></i></button>
+            </div>
+        </nav>
+        <div class="main-container">
+            <aside class="sidebar" id="locations-sidebar">
+                <div class="sidebar-section">
+                    <div class="section-header"><i class="fas fa-sliders-h"></i><span>Map Controls</span></div>
+                    <div class="control-item">
+                        <label class="control-label"><i class="fas fa-check-circle"></i><span>Safe Zones</span></label>
+                        <div class="toggle-switch active" data-zone-type="safe"></div>
+                    </div>
+                    <div class="control-item">
+                        <label class="control-label"><i class="fas fa-exclamation-triangle"></i><span>Caution Zones</span></label>
+                        <div class="toggle-switch active" data-zone-type="warning"></div>
+                    </div>
+                    <div class="control-item">
+                        <label class="control-label"><i class="fas fa-ban"></i><span>Restricted Zones</span></label>
+                        <div class="toggle-switch active" data-zone-type="danger"></div>
+                    </div>
+                </div>
+                 <div class="sidebar-section">
+                    <div class="section-header"><i class="fas fa-chart-bar"></i><span>Safety Stats</span></div>
+                    <div class="stats-grid">
+                        <div class="stat-card safe">
+                            <div class="stat-card-value" id="total-locations-stat">0</div>
+                            <div class="stat-card-label">Total Locations</div>
+                        </div>
+                        <div class="stat-card warning">
+                            <div class="stat-card-value" id="active-alerts-stat">0</div>
+                            <div class="stat-card-label">Active Alerts</div>
+                        </div>
+                    </div>
+                </div>
+                <div class="sidebar-section">
+                    <div class="section-header"><i class="fas fa-eye"></i><span>Monitored Zones</span></div>
+                    <div class="zone-list" id="zone-list-container"></div>
+                </div>
+                <div class="sidebar-section" id="manage-zones-section">
+                    <div class="section-header"><i class="fas fa-edit"></i><span>Manage Zones</span></div>
+                    <button class="btn btn-blue" id="start-add-zone-btn"><i class="fas fa-plus"></i><span>Start Adding Zone</span></button>
+                    <form id="add-zone-form" style="display: none;">
+                        <div id="coords-display">Click on the map to set location</div>
+                        <div class="form-group"><label for="zone-name">Zone Name</label><input type="text" id="zone-name" required></div>
+                        <div class="form-group">
+                            <label for="zone-type">Zone Type</label>
+                            <select id="zone-type">
+                                <option value="safe">Safe</option><option value="warning">Caution</option><option value="danger">Restricted</option>
+                            </select>
+                        </div>
+                        <div class="form-buttons">
+                            <button type="submit" class="btn btn-green">Save Zone</button>
+                            <button type="button" class="btn" id="cancel-add-zone-btn" style="background: var(--bg-tertiary);">Cancel</button>
+                        </div>
+                    </form>
+                </div>
+            </aside>
+            <aside class="sidebar" id="collections-sidebar" style="display: none;">
+                <div class="sidebar-section">
+                    <div class="section-header"><i class="fas fa-plus-circle"></i><span>Create Collection</span></div>
+                    <form id="create-collection-form">
+                        <div class="form-group"><label for="new-collection-name">Collection Name</label><input type="text" id="new-collection-name" required></div>
+                        <button type="submit" class="btn btn-blue">Create</button>
+                    </form>
+                </div>
+                <div class="sidebar-section">
+                    <div class="section-header"><i class="fas fa-star"></i><span>My Collections</span></div>
+                    <div class="collection-list" id="collection-list-container"></div>
+                </div>
+            </aside>
+            <aside class="sidebar" id="world-travel-sidebar" style="display: none;">
+                 <div class="sidebar-section">
+                    <div class="section-header"><i class="fas fa-info-circle"></i><span>Global Overview</span></div>
+                    <p style="font-size: 0.9em; color: var(--text-secondary);">Explore safety data on a global scale. This map displays key regions based on aggregated safety statistics.</p>
+                </div>
+                <div class="sidebar-section">
+                    <div class="section-header"><i class="fas fa-chart-line"></i><span>Top Caution Areas</span></div>
+                    <div class="zone-list" id="global-warning-list-container">
+                        </div>
+                </div>
+            </aside>
+            <div class="map-container">
+                <div id="map"></div>
+                <div class="alert-panel" id="alertPanel" style="display: none;"></div>
+            </div>
+        </div>
+    </div>
+
+    <div id="add-to-collection-modal" class="modal">
+        <div class="modal-content">
+            <span class="close-btn">&times;</span>
+            <h4>Add to Collection</h4>
+            <div class="zone-info-display"></div>
+            <div class="modal-body">
+                <p>Select a collection to add this zone to:</p>
+                <select id="collections-dropdown" class="dropdown"></select>
+                <button id="confirm-add-btn" class="btn btn-green">Add</button>
+                <div id="modal-message"></div>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+    <script src="script.js"></script>
+</body>
+</html>
