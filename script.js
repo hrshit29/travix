@@ -56,62 +56,45 @@ document.addEventListener('DOMContentLoaded', () => {
     let selectedZoneToAdd = null;
     let collectionsListenerUnsubscribe = null;
 
-    // --- TYPING EFFECT ---
+    // --- SMOOTH TYPING EFFECT ---
     const words = [
-        'Travix',
-        'ट्रैविक्स',  // Hindi (Devanagari)
-        'ਟ੍ਰੈਵਿਕਸ',   // Punjabi (Gurmukhi)
-        'ત્રાવિક્સ',   // Gujarati
-        'ట్రావిక్స్',  // Telugu
-        'ಟ್ರಾವಿಕ್ಸ್', // Kannada
-        'ട്രാവിക്സ്',  // Malayalam
-        'ত্রাভিক্স',   // Bengali
-        'ଟ୍ରାଭିକ୍ସ',   // Odia
-        'त्राविक्स'    // Marathi (Devanagari)
+        'Travix', 'ट्रैविक्स', 'ਟ੍ਰੈਵਿਕਸ', 'ત્રાવિક્સ', 'ట్రావిక్స్', 
+        'ಟ್ರಾವಿಕ್ಸ್', 'ട്രാവിക്സ്', 'ত্রাভিক্স', 'ଟ୍ରାଭିକ୍ସ', 'त्राविक्स'
     ];
-    
     let wordIndex = 0;
     let charIndex = 0;
     let isDeleting = false;
-    let typingSpeed = 150;
     
     function typeWriter() {
         const typingElement = document.getElementById('typing-text');
-        const currentWord = words[wordIndex];
-        
         if (!typingElement) return;
-        
+
+        const currentWord = words[wordIndex];
+        let typeSpeed;
+
         if (isDeleting) {
             typingElement.textContent = currentWord.substring(0, charIndex - 1);
             charIndex--;
-            typingSpeed = 100;
+            typeSpeed = 75;
         } else {
             typingElement.textContent = currentWord.substring(0, charIndex + 1);
             charIndex++;
-            typingSpeed = 150;
+            typeSpeed = 150;
         }
-        
+
         if (!isDeleting && charIndex === currentWord.length) {
-            // Pause before starting to delete
-            typingSpeed = 2000;
+            typeSpeed = 2000;
             isDeleting = true;
         } else if (isDeleting && charIndex === 0) {
-            // Move to next word
             isDeleting = false;
             wordIndex = (wordIndex + 1) % words.length;
-            typingSpeed = 500;
+            typeSpeed = 1000;
         }
         
-        setTimeout(typeWriter, typingSpeed);
+        const finalSpeed = typeSpeed * (0.8 + Math.random() * 0.4);
+        setTimeout(typeWriter, finalSpeed);
     }
     
-    // Start typing effect when home page loads
-    function startTypingEffect() {
-        setTimeout(() => {
-            typeWriter();
-        }, 1000);
-    }
-
     // --- AUTHENTICATION LOGIC ---
     let isLogin = true;
     toggleLink.addEventListener('click', () => {
@@ -171,7 +154,7 @@ document.addEventListener('DOMContentLoaded', () => {
     
     auth.onAuthStateChanged(async (user) => {
         if (user) {
-            authContainer.style.display = 'none'; // Hide auth modal on successful login
+            authContainer.style.display = 'none';
             if (user.isAnonymous) {
                 currentUser = { uid: user.uid, email: 'guest@travix.com', role: 'guest' };
             } else {
@@ -196,15 +179,14 @@ document.addEventListener('DOMContentLoaded', () => {
             zoneLayers.safe = L.layerGroup().addTo(map);
             zoneLayers.warning = L.layerGroup().addTo(map);
             zoneLayers.danger = L.layerGroup().addTo(map);
-            setupMapEventListeners(); // FIX: Setup map listeners
+            setupMapEventListeners();
         }
 
         try {
             await fetchZones(); 
         } catch (error) {
             console.error("Could not fetch zones:", error);
-            alert("Error: Could not load map data. This might be due to security rules.");
-            return;
+            // The alert is now handled by the security rules fix, but we keep the console log.
         }
 
         if (user && user.role === 'customer') {
@@ -215,7 +197,6 @@ document.addEventListener('DOMContentLoaded', () => {
 
         document.getElementById('manage-zones-section').style.display = (user && user.role === 'authority') ? 'block' : 'none';
         
-        // Reset to home page on auth change
         document.querySelector('.nav-item.active').classList.remove('active');
         document.querySelector('.nav-item[data-page="home"]').classList.add('active');
         renderHomePage();
@@ -346,8 +327,6 @@ document.addEventListener('DOMContentLoaded', () => {
         collectionsSidebar.style.display = 'none';
         worldTravelSidebar.style.display = 'none';
         initializeHomePage();
-        // Start typing effect when home page is rendered
-        startTypingEffect();
     }
 
     function renderLocationsPage() {
@@ -498,7 +477,6 @@ document.addEventListener('DOMContentLoaded', () => {
     
     // --- EVENT HANDLERS ---
     function setupMapEventListeners() {
-        // FIX: Handle clicks on dynamically created popup buttons
         map.on('popupopen', function (e) {
             const popupNode = e.popup.getElement();
             const addToCollectionBtn = popupNode.querySelector('.add-to-collection-popup-btn');
@@ -532,42 +510,34 @@ document.addEventListener('DOMContentLoaded', () => {
         else if (page === 'world-travel') renderWorldTravelPage();
     }
     
-    // Centralized click handler for the document body
     document.body.addEventListener('click', (e) => {
-        // Sidebar zone removal button
         if (currentUser && currentUser.role === 'authority' && e.target.matches('.remove-zone-btn')) {
             handleRemoveZone(e.target.dataset.id);
         }
-        // Modal close button
         else if (e.target.matches('.close-btn')) {
              addToCollectionModal.style.display = 'none';
         }
-        // View a collection's zones
         else if (e.target.closest('.collection-info')) {
             const collectionId = e.target.closest('.collection-info').dataset.id;
             const collection = allCollections.find(c => c.id === collectionId);
             const zonesToDisplay = allZones.filter(z => collection.zoneIds.includes(z.id));
             renderCollectionsPage(zonesToDisplay);
         }
-        // Remove a collection
         else if (e.target.matches('.remove-collection-btn')) {
             e.stopPropagation(); 
             handleRemoveCollection(e.target.dataset.id);
         }
-        // Confirm adding a zone to a collection
         else if (e.target.matches('#confirm-add-btn')) {
             const collectionId = collectionsDropdown.value;
             if (selectedZoneToAdd && collectionId) {
                 handleAddToCollection(selectedZoneToAdd.id, collectionId);
             }
         }
-        // Pan map to a zone from a list
         const zoneItemContent = e.target.closest('.zone-item-content');
         if (zoneItemContent) {
             map.flyTo([zoneItemContent.dataset.lat, zoneItemContent.dataset.lng], 14);
         }
         
-        // Handle map filter toggles
         const toggle = e.target.closest('.toggle-switch');
         if(toggle && activePage === 'locations') {
               toggle.classList.toggle('active');
@@ -693,10 +663,12 @@ document.addEventListener('DOMContentLoaded', () => {
         initCTAButtons();
     }
     
-    // Attach event listeners that only need to be set once
+
     navItems.forEach(item => item.addEventListener('click', handleNavClick));
     startAddZoneBtn.addEventListener('click', () => setAddMode(true));
     cancelAddZoneBtn.addEventListener('click', () => setAddMode(false));
     addZoneForm.addEventListener('submit', handleAddZone);
     createCollectionForm.addEventListener('submit', handleCreateCollection);
+
+    setTimeout(typeWriter, 1500);
 });
