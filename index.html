@@ -12,7 +12,8 @@
     <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore-compat.js"></script>
 </head>
 <body>
-    <div id="auth-container">
+    
+    <div id="auth-container" style="display: none;">
         <div class="auth-box">
             <h2 id="auth-title"><i class="fas fa-shield-alt"></i>Travix</h2>
             <p id="auth-subtitle">Sign in to monitor your travels</p>
@@ -22,7 +23,7 @@
                 <div class="form-group"><label for="login-password">Password</label><input type="password" id="login-password" required></div>
                 <button type="submit">Login</button>
             </form>
-            <form id="signup-form" class="auth-form">
+            <form id="signup-form" class="auth-form" style="display: none;">
                 <div class="form-group"><label for="signup-email">Email</label><input type="email" id="signup-email" required></div>
                 <div class="form-group"><label for="signup-password">Password</label><input type="password" id="signup-password" required></div>
                 <button type="submit">Create Account</button>
@@ -36,24 +37,219 @@
     
     <div id="app-container">
         <nav class="top-nav">
-            <div class="logo"><i class="fas fa-shield-alt"></i><span>Travix</span></div>
-             <div class="nav-items">
-                <a href="#" class="nav-item active" data-page="locations"><i class="fas fa-map-marker-alt"></i><span>Locations</span></a>
-                <a href="#" class="nav-item" data-page="collections"><i class="fas fa-layer-group"></i><span>Collections</span></a>
-                <a href="#" class="nav-item" data-page="world-travel"><i class="fas fa-globe"></i><span>World Travel</span></a>
+            <div class="nav-left">
+                <div class="logo"><i class="fas fa-shield-alt"></i><span>Travix</span></div>
+                <div class="nav-items">
+                    <a href="#" class="nav-item active" data-page="home"><i class="fas fa-home"></i><span>Home</span></a>
+                    <a href="#" class="nav-item" data-page="locations"><i class="fas fa-map-marker-alt"></i><span>Locations</span></a>
+                    <a href="#" class="nav-item" data-page="collections"><i class="fas fa-layer-group"></i><span>Collections</span></a>
+                    <a href="#" class="nav-item" data-page="world-travel"><i class="fas fa-globe"></i><span>World Travel</span></a>
+                </div>
             </div>
             <div class="user-section">
                 <div class="search-box">
                     <i class="fas fa-search" style="color: var(--text-muted);"></i>
                     <input type="text" placeholder="Search locations...">
                 </div>
-                <div class="user-info">
-                    <div class="user-avatar" id="user-avatar"></div>
+                <div id="user-controls">
+                    <div class="user-info" style="display: none;">
+                        <div class="user-avatar" id="user-avatar"></div>
+                        <div class="user-details">
+                            <span class="user-name" id="user-name">User</span>
+                        </div>
+                    </div>
+                    <button id="logout-btn" title="Logout" style="display: none;"><i class="fas fa-sign-out-alt"></i></button>
+                    <button id="login-nav-btn" class="cta-button secondary" style="display: none;">Login</button>
                 </div>
-                <button id="logout-btn" title="Logout"><i class="fas fa-sign-out-alt"></i></button>
             </div>
         </nav>
         <div class="main-container">
+            <div id="home-content" class="page-content">
+                <div class="hero-section">
+                    <div class="hero-background">
+                        <div class="hero-overlay"></div>
+                        <div class="floating-elements">
+                            <div class="floating-element" style="top: 20%; left: 10%;"></div>
+                            <div class="floating-element" style="top: 60%; right: 15%;"></div>
+                            <div class="floating-element" style="top: 80%; left: 70%;"></div>
+                        </div>
+                    </div>
+                    <div class="hero-content">
+                        <div class="hero-text">
+                            <h1 class="hero-title">
+                                <span class="gradient-text">
+                                    Welcome to <span id="typing-text">Travix</span><span class="cursor">|</span>
+                                </span>
+                                <span class="subtitle">Your Ultimate Travel Safety Companion</span>
+                            </h1>
+                            <p class="hero-description">
+                                Monitor real-time safety zones, track your journeys, and explore the world with confidence. 
+                                Advanced AI-powered monitoring keeps you informed about safety conditions wherever you travel.
+                            </p>
+                            <div class="hero-actions">
+                                <button class="cta-button primary" id="explore-locations-btn">
+                                    <i class="fas fa-map-marked-alt"></i>
+                                    <span>Explore Locations</span>
+                                    <div class="button-glow"></div>
+                                </button>
+                                <button class="cta-button secondary" id="learn-more-btn">
+                                    <i class="fas fa-info-circle"></i>
+                                    <span>Learn More</span>
+                                </button>
+                            </div>
+                        </div>
+                        <div class="hero-visual">
+                            <div class="dashboard-preview">
+                                <div class="preview-header">
+                                    <div class="preview-nav">
+                                        <div class="nav-dot active"></div>
+                                        <div class="nav-dot"></div>
+                                        <div class="nav-dot"></div>
+                                    </div>
+                                </div>
+                                <div class="preview-content">
+                                    <div class="safety-indicator safe">
+                                        <div class="indicator-icon">
+                                            <i class="fas fa-shield-alt"></i>
+                                        </div>
+                                        <div class="indicator-text">
+                                            <span class="status">Safe Zone Detected</span>
+                                            <span class="location">New Delhi, India</span>
+                                        </div>
+                                        <div class="pulse-ring"></div>
+                                    </div>
+                                    <div class="mini-map">
+                                        <div class="map-zone safe" style="top: 30%; left: 20%;"></div>
+                                        <div class="map-zone warning" style="top: 60%; right: 25%;"></div>
+                                        <div class="map-zone danger" style="bottom: 20%; left: 40%;"></div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="features-section">
+                    <div class="container">
+                        <div class="section-header">
+                            <h2 class="section-title">Powerful Safety Features</h2>
+                            <p class="section-subtitle">Everything you need to travel safely and confidently</p>
+                        </div>
+                        
+                        <div class="features-grid">
+                            <div class="feature-card" data-feature="monitoring">
+                                <div class="feature-icon">
+                                    <i class="fas fa-satellite-dish"></i>
+                                    <div class="icon-bg"></div>
+                                </div>
+                                <h3 class="feature-title">Real-time Monitoring</h3>
+                                <p class="feature-description">
+                                    24/7 safety monitoring with instant alerts and zone classifications to keep you informed.
+                                </p>
+                                <div class="feature-stats">
+                                    <span class="stat">
+                                        <strong>99.9%</strong>
+                                        <small>Uptime</small>
+                                    </span>
+                                </div>
+                            </div>
+
+                            <div class="feature-card" data-feature="collections">
+                                <div class="feature-icon">
+                                    <i class="fas fa-layer-group"></i>
+                                    <div class="icon-bg"></div>
+                                </div>
+                                <h3 class="feature-title">Smart Collections</h3>
+                                <p class="feature-description">
+                                    Organize and save your favorite safe zones, create custom travel routes and collections.
+                                </p>
+                                <div class="feature-stats">
+                                    <span class="stat">
+                                        <strong>Unlimited</strong>
+                                        <small>Collections</small>
+                                    </span>
+                                </div>
+                            </div>
+
+                            <div class="feature-card" data-feature="global">
+                                <div class="feature-icon">
+                                    <i class="fas fa-globe-americas"></i>
+                                    <div class="icon-bg"></div>
+                                </div>
+                                <h3 class="feature-title">Global Coverage</h3>
+                                <p class="feature-description">
+                                    India's smart tourist companion for safety data coverage with detailed insights for every region.
+                                </p>
+                                <div class="feature-stats">
+                                    <span class="stat">
+                                        <strong>195+</strong>
+                                        <small>Regions</small>
+                                    </span>
+                                </div>
+                            </div>
+
+                            <div class="feature-card" data-feature="ai">
+                                <div class="feature-icon">
+                                    <i class="fas fa-brain"></i>
+                                    <div class="icon-bg"></div>
+                                </div>
+                                <h3 class="feature-title">AI-Powered Analysis</h3>
+                                <p class="feature-description">
+                                    Advanced machine learning algorithms analyze patterns to predict and prevent risks.
+                                </p>
+                                <div class="feature-stats">
+                                    <span class="stat">
+                                        <strong>98%</strong>
+                                        <small>Accuracy</small>
+                                    </span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="stats-section">
+                    <div class="container">
+                        <div class="stats-grid">
+                            <div class="stat-item" data-count="10000">
+                                <div class="stat-number">0+</div>
+                                <div class="stat-label">Active Users</div>
+                            </div>
+                            <div class="stat-item" data-count="50000">
+                                <div class="stat-number">0+</div>
+                                <div class="stat-label">Monitored Zones</div>
+                            </div>
+                            <div class="stat-item" data-count="195">
+                                <div class="stat-number">0+</div>
+                                <div class="stat-label">Regions Covered</div>
+                            </div>
+                            <div class="stat-item" data-count="99">
+                                <div class="stat-number">0%</div>
+                                <div class="stat-label">Uptime</div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="cta-section">
+                    <div class="container">
+                        <div class="cta-content">
+                            <h2 class="cta-title">Ready to Travel Safely?</h2>
+                            <p class="cta-description">
+                                Join thousands of travelers who trust Travix for their safety monitoring needs. Have fun exploring India. Namaste!
+                            </p>
+                            <div class="cta-actions">
+                                <button class="cta-button primary large" id="get-started-btn">
+                                    <i class="fas fa-rocket"></i>
+                                    <span>Get Started Now</span>
+                                    <div class="button-glow"></div>
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
             <aside class="sidebar" id="locations-sidebar">
                 <div class="sidebar-section">
                     <div class="section-header"><i class="fas fa-sliders-h"></i><span>Map Controls</span></div>
@@ -130,7 +326,7 @@
                         </div>
                 </div>
             </aside>
-            <div class="map-container">
+            <div class="map-container" style="display: none;">
                 <div id="map"></div>
                 <div class="alert-panel" id="alertPanel" style="display: none;"></div>
             </div>
@@ -152,6 +348,9 @@
     </div>
 
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+    <script src="script.js"></script>
+</body>
+</html>
     <script src="script.js"></script>
 </body>
 </html>
