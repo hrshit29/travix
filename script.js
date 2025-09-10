@@ -17,16 +17,17 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // UI Elements
     const authContainer = document.getElementById('auth-container');
-    const appContainer = document.getElementById('app-container');
     const loginForm = document.getElementById('login-form');
     const signupForm = document.getElementById('signup-form');
     const toggleLink = document.getElementById('toggle-link');
     const toggleText = document.getElementById('toggle-text');
-    const roleGroup = document.getElementById('role-group');
     const authError = document.getElementById('auth-error');
     const logoutBtn = document.getElementById('logout-btn');
     const guestLoginBtn = document.getElementById('guest-login-btn');
+    const loginNavBtn = document.getElementById('login-nav-btn');
     const navItems = document.querySelectorAll('.nav-item');
+    const homeContent = document.getElementById('home-content');
+    const mapContainer = document.querySelector('.map-container');
     const locationsSidebar = document.getElementById('locations-sidebar');
     const collectionsSidebar = document.getElementById('collections-sidebar');
     const worldTravelSidebar = document.getElementById('world-travel-sidebar');
@@ -42,7 +43,6 @@ document.addEventListener('DOMContentLoaded', () => {
     const confirmAddBtn = document.getElementById('confirm-add-btn');
     const globalWarningListContainer = document.getElementById('global-warning-list-container');
 
-
     // State Variables
     let currentUser = null;
     let map = null;
@@ -51,10 +51,66 @@ document.addEventListener('DOMContentLoaded', () => {
     let newZoneCoords = null;
     let allZones = [];
     let allCollections = [];
-    let activePage = 'locations';
+    let activePage = 'home';
     let zoneLayers = { safe: null, warning: null, danger: null };
     let selectedZoneToAdd = null;
     let collectionsListenerUnsubscribe = null;
+
+    // --- TYPING EFFECT ---
+    const words = [
+        'Travix',
+        'ट्रैविक्स',  // Hindi (Devanagari)
+        'ਟ੍ਰੈਵਿਕਸ',   // Punjabi (Gurmukhi)
+        'ત્રાવિક્સ',   // Gujarati
+        'ట్రావిక్స్',  // Telugu
+        'ಟ್ರಾವಿಕ್ಸ್', // Kannada
+        'ട്രാവിക്സ്',  // Malayalam
+        'ত্রাভিক্স',   // Bengali
+        'ଟ୍ରାଭିକ୍ସ',   // Odia
+        'त्राविक्स'    // Marathi (Devanagari)
+    ];
+    
+    let wordIndex = 0;
+    let charIndex = 0;
+    let isDeleting = false;
+    let typingSpeed = 150;
+    
+    function typeWriter() {
+        const typingElement = document.getElementById('typing-text');
+        const currentWord = words[wordIndex];
+        
+        if (!typingElement) return;
+        
+        if (isDeleting) {
+            typingElement.textContent = currentWord.substring(0, charIndex - 1);
+            charIndex--;
+            typingSpeed = 100;
+        } else {
+            typingElement.textContent = currentWord.substring(0, charIndex + 1);
+            charIndex++;
+            typingSpeed = 150;
+        }
+        
+        if (!isDeleting && charIndex === currentWord.length) {
+            // Pause before starting to delete
+            typingSpeed = 2000;
+            isDeleting = true;
+        } else if (isDeleting && charIndex === 0) {
+            // Move to next word
+            isDeleting = false;
+            wordIndex = (wordIndex + 1) % words.length;
+            typingSpeed = 500;
+        }
+        
+        setTimeout(typeWriter, typingSpeed);
+    }
+    
+    // Start typing effect when home page loads
+    function startTypingEffect() {
+        setTimeout(() => {
+            typeWriter();
+        }, 1000);
+    }
 
     // --- AUTHENTICATION LOGIC ---
     let isLogin = true;
@@ -63,11 +119,18 @@ document.addEventListener('DOMContentLoaded', () => {
         authError.textContent = '';
         loginForm.style.display = isLogin ? 'block' : 'none';
         signupForm.style.display = isLogin ? 'none' : 'block';
-        if (roleGroup) {
-            roleGroup.style.display = isLogin ? 'none' : 'block';
-        }
         toggleText.textContent = isLogin ? "Don't have an account?" : 'Already have an account?';
         toggleLink.textContent = isLogin ? 'Sign Up' : 'Login';
+    });
+    
+    loginNavBtn.addEventListener('click', () => {
+        authContainer.style.display = 'flex';
+    });
+
+    authContainer.addEventListener('click', (e) => {
+        if (e.target === authContainer) {
+            authContainer.style.display = 'none';
+        }
     });
 
     loginForm.addEventListener('submit', async (e) => {
@@ -88,10 +151,14 @@ document.addEventListener('DOMContentLoaded', () => {
             await db.collection('userRoles').doc(userCredential.user.uid).set({ email, role: 'customer' });
         } catch (error) { authError.textContent = error.message; }
     });
-
-    guestLoginBtn.addEventListener('click', () => {
-        const guestUser = { email: 'guest@travix.com', role: 'guest' };
-        initializeApp(guestUser);
+    
+    guestLoginBtn.addEventListener('click', async () => {
+        authError.textContent = '';
+        try {
+            await auth.signInAnonymously();
+        } catch (error) {
+            authError.textContent = error.message;
+        }
     });
 
     logoutBtn.addEventListener('click', () => {
@@ -101,34 +168,27 @@ document.addEventListener('DOMContentLoaded', () => {
         }
         auth.signOut();
     });
-
+    
     auth.onAuthStateChanged(async (user) => {
         if (user) {
-            const userRoleDoc = await db.collection('userRoles').doc(user.uid).get();
-            const userRole = userRoleDoc.exists ? userRoleDoc.data().role : 'customer';
-            currentUser = { uid: user.uid, email: user.email, role: userRole };
-            initializeApp(currentUser);
+            authContainer.style.display = 'none'; // Hide auth modal on successful login
+            if (user.isAnonymous) {
+                currentUser = { uid: user.uid, email: 'guest@travix.com', role: 'guest' };
+            } else {
+                const userRoleDoc = await db.collection('userRoles').doc(user.uid).get();
+                const userRole = userRoleDoc.exists ? userRoleDoc.data().role : 'customer';
+                currentUser = { uid: user.uid, email: user.email, role: userRole };
+            }
         } else {
-            authContainer.classList.remove('hidden');
-            appContainer.classList.remove('visible');
-            if (map) map.remove();
-            map = null;
+            currentUser = null;
         }
+        initializeApp(currentUser);
     });
 
     // --- APP INITIALIZATION ---
     async function initializeApp(user) {
-        authContainer.classList.add('hidden');
-        appContainer.classList.add('visible');
-        document.body.className = `${user.role}-view`;
-        document.getElementById('user-avatar').textContent = user.email.substring(0, 2).toUpperCase();
-
-        const collectionsNavItem = document.querySelector('.nav-item[data-page="collections"]');
-        if (user.role !== 'customer') {
-            collectionsNavItem.style.display = 'none';
-        } else {
-            collectionsNavItem.style.display = 'flex';
-        }
+        updateNavbar(user);
+        document.body.className = user ? `${user.role}-view` : 'guest-view';
 
         if (!map) {
             map = L.map('map', { attributionControl: false }).setView([28.57, 77.32], 13);
@@ -136,30 +196,48 @@ document.addEventListener('DOMContentLoaded', () => {
             zoneLayers.safe = L.layerGroup().addTo(map);
             zoneLayers.warning = L.layerGroup().addTo(map);
             zoneLayers.danger = L.layerGroup().addTo(map);
+            setupMapEventListeners(); // FIX: Setup map listeners
         }
 
-        await fetchZones(); 
+        try {
+            await fetchZones(); 
+        } catch (error) {
+            console.error("Could not fetch zones:", error);
+            alert("Error: Could not load map data. This might be due to security rules.");
+            return;
+        }
 
-        if (user.role === 'customer') {
+        if (user && user.role === 'customer') {
             setupCollectionsListener();
-        }
-
-        if (user.role === 'authority') {
-            document.getElementById('manage-zones-section').style.display = 'block';
-            startAddZoneBtn.addEventListener('click', () => setAddMode(true));
-            cancelAddZoneBtn.addEventListener('click', () => setAddMode(false));
-            addZoneForm.addEventListener('submit', handleAddZone);
         } else {
-            document.getElementById('manage-zones-section').style.display = 'none';
+             if (collectionsListenerUnsubscribe) collectionsListenerUnsubscribe();
         }
-        
-        createCollectionForm.addEventListener('submit', handleCreateCollection);
-        navItems.forEach(item => item.addEventListener('click', handleNavClick));
-        document.body.addEventListener('click', handleBodyClick);
 
-        renderLocationsPage();
+        document.getElementById('manage-zones-section').style.display = (user && user.role === 'authority') ? 'block' : 'none';
+        
+        // Reset to home page on auth change
+        document.querySelector('.nav-item.active').classList.remove('active');
+        document.querySelector('.nav-item[data-page="home"]').classList.add('active');
+        renderHomePage();
         updateSafetyStats();
         startAlertCycle();
+    }
+
+    // --- UI & NAVBAR LOGIC ---
+    function updateNavbar(user) {
+        const userInfo = document.querySelector('.user-info');
+        if (user) {
+            userInfo.style.display = 'flex';
+            logoutBtn.style.display = 'block';
+            loginNavBtn.style.display = 'none';
+            document.getElementById('user-avatar').textContent = user.email.substring(0, 2).toUpperCase();
+            document.querySelector('.nav-item[data-page="collections"]').style.display = user.role === 'customer' ? 'flex' : 'none';
+        } else {
+            userInfo.style.display = 'none';
+            logoutBtn.style.display = 'none';
+            loginNavBtn.style.display = 'block';
+            document.querySelector('.nav-item[data-page="collections"]').style.display = 'none';
+        }
     }
     
     // --- DATA MANAGEMENT (FIRESTORE) ---
@@ -169,22 +247,15 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     function setupCollectionsListener() {
-        if (currentUser.role !== 'customer') return;
-        
-        if (collectionsListenerUnsubscribe) {
-            collectionsListenerUnsubscribe();
-        }
+        if (!currentUser || currentUser.role !== 'customer') return;
+        if (collectionsListenerUnsubscribe) collectionsListenerUnsubscribe();
         
         collectionsListenerUnsubscribe = db.collection('collections')
           .where('userId', '==', currentUser.uid)
           .onSnapshot(snapshot => {
             allCollections = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
-            if (activePage === 'collections') {
-                renderCollectionsPage();
-            }
-          }, error => {
-            console.error("Error fetching collections: ", error);
-          });
+            if (activePage === 'collections') renderCollectionsPage();
+          }, error => console.error("Error fetching collections: ", error));
     }
 
     async function handleAddZone(e) {
@@ -219,7 +290,7 @@ document.addEventListener('DOMContentLoaded', () => {
     async function handleCreateCollection(e) {
         e.preventDefault();
         const name = document.getElementById('new-collection-name').value;
-        if (!name) return;
+        if (!name || !currentUser) return;
         try {
             await db.collection('collections').add({
                 name,
@@ -233,15 +304,11 @@ document.addEventListener('DOMContentLoaded', () => {
     async function handleRemoveCollection(collectionId) {
         const collectionToRemove = allCollections.find(c => c.id === collectionId);
         if (!collectionToRemove || !confirm(`Are you sure you want to delete the collection "${collectionToRemove.name}"?`)) return;
-
         try {
-            // Perform the delete operation in the background
             await db.collection('collections').doc(collectionId).delete();
-            // On success, the backend is now in sync with our optimistic UI.
-            // The onSnapshot listener will eventually get this update and confirm the state.
         } catch (error) {
             console.error("Error removing collection: ", error);
-            alert("Failed to delete collection. Reverting changes.");
+            alert("Failed to delete collection.");
         }
     }
 
@@ -262,30 +329,44 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     }
     
-    document.querySelector('.search-box input').addEventListener('input', handleSearch);
-
-    function handleSearch(e) {
+    document.querySelector('.search-box input').addEventListener('input', (e) => {
         const searchTerm = e.target.value.toLowerCase();
         if (activePage !== 'locations') return;
-
         const filteredZones = searchTerm === '' ? allZones : allZones.filter(zone => zone.name.toLowerCase().includes(searchTerm));
         renderMap(filteredZones, 'locations');
         renderZoneList(filteredZones);
+    });
+
+    // --- PAGE RENDERING ---
+    function renderHomePage() {
+        activePage = 'home';
+        homeContent.style.display = 'block';
+        mapContainer.style.display = 'none';
+        locationsSidebar.style.display = 'none';
+        collectionsSidebar.style.display = 'none';
+        worldTravelSidebar.style.display = 'none';
+        initializeHomePage();
+        // Start typing effect when home page is rendered
+        startTypingEffect();
     }
 
-    // --- UI RENDERING ---
     function renderLocationsPage() {
         activePage = 'locations';
+        homeContent.style.display = 'none';
+        mapContainer.style.display = 'block';
         renderMap(allZones, 'locations');
         renderZoneList(allZones);
         updateSafetyStats();
         locationsSidebar.style.display = 'flex';
         collectionsSidebar.style.display = 'none';
         worldTravelSidebar.style.display = 'none';
+        if(map) map.invalidateSize();
     }
 
     function renderCollectionsPage(zonesToDisplay = null) {
         activePage = 'collections';
+        homeContent.style.display = 'none';
+        mapContainer.style.display = 'block';
         collectionListContainer.innerHTML = '';
         allCollections.forEach(collection => {
             const listItem = document.createElement('div');
@@ -304,16 +385,22 @@ document.addEventListener('DOMContentLoaded', () => {
         locationsSidebar.style.display = 'none';
         collectionsSidebar.style.display = 'flex';
         worldTravelSidebar.style.display = 'none';
+        if(map) map.invalidateSize();
     }
 
     function renderWorldTravelPage() {
         activePage = 'world-travel';
+        homeContent.style.display = 'none';
+        mapContainer.style.display = 'block';
         renderMap(allZones, 'world-travel');
         renderGlobalWarningList();
         locationsSidebar.style.display = 'none';
         collectionsSidebar.style.display = 'none';
         worldTravelSidebar.style.display = 'flex';
-        map.flyTo([0, 0], 2);
+        if(map) {
+            map.invalidateSize();
+            map.flyTo([20, 0], 2);
+        }
     }
 
     function renderGlobalWarningList() {
@@ -341,6 +428,7 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     }
 
+    // --- MAP & UI INTERACTION ---
     function renderMap(zones, page, filter = false) {
         Object.values(zoneLayers).forEach(layer => layer.clearLayers());
         const activeToggles = {
@@ -357,10 +445,12 @@ document.addEventListener('DOMContentLoaded', () => {
                     dashArray: zone.type === 'danger' ? '5, 5' : null
                 }).addTo(zoneLayers[zone.type]);
                 let popupContent = `<b>${zone.name}</b><br>Status: ${zone.type}`;
-                if (currentUser.role === 'authority') {
-                     popupContent += `<br><button class="remove-zone-popup-btn" data-id="${zone.id}">Remove Zone</button>`;
-                } else if (page === 'locations') {
-                    popupContent += `<br><button class="add-to-collection-popup-btn" data-id="${zone.id}">Add to Collection</button>`;
+                if (currentUser) {
+                    if (currentUser.role === 'authority') {
+                         popupContent += `<br><button class="remove-zone-popup-btn" data-id="${zone.id}">Remove Zone</button>`;
+                    } else if (currentUser.role === 'customer' && page === 'locations') {
+                        popupContent += `<br><button class="add-to-collection-popup-btn" data-id="${zone.id}">Add to Collection</button>`;
+                    }
                 }
                 circle.bindPopup(popupContent);
             }
@@ -376,7 +466,7 @@ document.addEventListener('DOMContentLoaded', () => {
                     <div class="zone-indicator ${zone.type}"></div>
                     <div class="zone-info"><div class="zone-name">${zone.name}</div><div class="zone-count">${zone.lat.toFixed(4)}, ${zone.lng.toFixed(4)}</div></div>
                 </div>
-                ${currentUser.role === 'authority' ? `<i class="fas fa-trash-alt remove-zone-btn" data-id="${zone.id}" title="Remove Zone"></i>` : ''}`;
+                ${(currentUser && currentUser.role === 'authority') ? `<i class="fas fa-trash-alt remove-zone-btn" data-id="${zone.id}" title="Remove Zone"></i>` : ''}`;
             zoneListContainer.appendChild(listItem);
         });
     }
@@ -407,50 +497,84 @@ document.addEventListener('DOMContentLoaded', () => {
     }
     
     // --- EVENT HANDLERS ---
+    function setupMapEventListeners() {
+        // FIX: Handle clicks on dynamically created popup buttons
+        map.on('popupopen', function (e) {
+            const popupNode = e.popup.getElement();
+            const addToCollectionBtn = popupNode.querySelector('.add-to-collection-popup-btn');
+            const removeZoneBtn = popupNode.querySelector('.remove-zone-popup-btn');
+
+            if (addToCollectionBtn) {
+                addToCollectionBtn.addEventListener('click', () => {
+                    selectedZoneToAdd = allZones.find(z => z.id === addToCollectionBtn.dataset.id);
+                    if (selectedZoneToAdd) showAddToCollectionModal();
+                });
+            }
+
+            if (removeZoneBtn) {
+                 removeZoneBtn.addEventListener('click', () => {
+                    handleRemoveZone(removeZoneBtn.dataset.id);
+                 });
+            }
+        });
+    }
+
     function handleNavClick(e) {
         e.preventDefault();
         const page = e.currentTarget.dataset.page;
         if (page === activePage) return;
         navItems.forEach(item => item.classList.remove('active'));
         e.currentTarget.classList.add('active');
-        if (page === 'locations') renderLocationsPage();
+        
+        if (page === 'home') renderHomePage();
+        else if (page === 'locations') renderLocationsPage();
         else if (page === 'collections') renderCollectionsPage();
         else if (page === 'world-travel') renderWorldTravelPage();
-        setTimeout(() => map.invalidateSize(), 100);
     }
-
-    function handleBodyClick(e) {
-        if (currentUser.role === 'authority' && e.target.matches('.remove-zone-btn, .remove-zone-popup-btn')) {
+    
+    // Centralized click handler for the document body
+    document.body.addEventListener('click', (e) => {
+        // Sidebar zone removal button
+        if (currentUser && currentUser.role === 'authority' && e.target.matches('.remove-zone-btn')) {
             handleRemoveZone(e.target.dataset.id);
-        } else if (currentUser.role === 'customer' && e.target.matches('.add-to-collection-popup-btn')) {
-            selectedZoneToAdd = allZones.find(z => z.id === e.target.dataset.id);
-            if (selectedZoneToAdd) showAddToCollectionModal();
-        } else if (e.target.matches('.close-btn')) {
+        }
+        // Modal close button
+        else if (e.target.matches('.close-btn')) {
              addToCollectionModal.style.display = 'none';
-        } else if (e.target.closest('.collection-info')) {
+        }
+        // View a collection's zones
+        else if (e.target.closest('.collection-info')) {
             const collectionId = e.target.closest('.collection-info').dataset.id;
             const collection = allCollections.find(c => c.id === collectionId);
             const zonesToDisplay = allZones.filter(z => collection.zoneIds.includes(z.id));
             renderCollectionsPage(zonesToDisplay);
-        } else if (e.target.matches('.remove-collection-btn')) {
+        }
+        // Remove a collection
+        else if (e.target.matches('.remove-collection-btn')) {
             e.stopPropagation(); 
             handleRemoveCollection(e.target.dataset.id);
-        } else if (e.target.matches('#confirm-add-btn')) {
+        }
+        // Confirm adding a zone to a collection
+        else if (e.target.matches('#confirm-add-btn')) {
             const collectionId = collectionsDropdown.value;
             if (selectedZoneToAdd && collectionId) {
                 handleAddToCollection(selectedZoneToAdd.id, collectionId);
             }
         }
-         const zoneItemContent = e.target.closest('.zone-item-content');
-         if (zoneItemContent) map.flyTo([zoneItemContent.dataset.lat, zoneItemContent.dataset.lng], 14);
-         
-         const toggle = e.target.closest('.toggle-switch');
-         if(toggle && activePage === 'locations') {
-             toggle.classList.toggle('active');
-             renderMap(allZones, activePage);
-         }
-    }
-    
+        // Pan map to a zone from a list
+        const zoneItemContent = e.target.closest('.zone-item-content');
+        if (zoneItemContent) {
+            map.flyTo([zoneItemContent.dataset.lat, zoneItemContent.dataset.lng], 14);
+        }
+        
+        // Handle map filter toggles
+        const toggle = e.target.closest('.toggle-switch');
+        if(toggle && activePage === 'locations') {
+              toggle.classList.toggle('active');
+              renderMap(allZones, activePage);
+        }
+    });
+
     // --- MODAL LOGIC ---
     function showAddToCollectionModal() {
         document.querySelector('#add-to-collection-modal h4').textContent = `Add "${selectedZoneToAdd.name}" to Collection`;
@@ -466,17 +590,16 @@ document.addEventListener('DOMContentLoaded', () => {
                 collectionsDropdown.appendChild(option);
             });
             confirmAddBtn.style.display = 'block';
+            document.getElementById('modal-message').textContent = '';
         } else {
-            const message = document.createElement('p');
-            message.textContent = 'This zone is already in all of your collections or you have none. Create one first!';
-            collectionsDropdown.innerHTML = ''; // Clear dropdown before adding message
-            collectionsDropdown.appendChild(message);
+            collectionsDropdown.innerHTML = '<option disabled>No other collections available.</option>';
+            document.getElementById('modal-message').textContent = 'This zone is in all collections or you have none.';
             confirmAddBtn.style.display = 'none';
         }
         addToCollectionModal.style.display = 'flex';
     }
 
-    // --- ALERT LOGIC ---
+    // --- DYNAMIC CONTENT & ALERTS ---
     let currentZoneIndex = 0;
     function startAlertCycle() {
         setInterval(() => {
@@ -499,4 +622,81 @@ document.addEventListener('DOMContentLoaded', () => {
         panel.className = `alert-panel ${zone.type}`;
         panel.innerHTML = `<div class="alert-header"><div class="alert-icon ${zone.type}"><i class="fas ${config.icon}"></i></div><div class="alert-content"><h3>${config.title}</h3><p>${config.msg}</p></div></div><div class="alert-details"><div class="detail-row"><span>Current Zone:</span><span>${zone.name}</span></div><div class="detail-row"><span>Last Updated:</span><span>Just now</span></div></div>`;
     }
+    
+    // --- HOME PAGE SPECIFIC SCRIPT ---
+    function initializeHomePage() {
+        function animateCounter(element, target, duration = 2000) {
+            const start = 0;
+            const increment = target / (duration / 16);
+            let current = start;
+            
+            const timer = setInterval(() => {
+                current += increment;
+                if (current >= target) {
+                    current = target;
+                    clearInterval(timer);
+                }
+                
+                let displayValue;
+                if (target >= 1000) {
+                    displayValue = Math.floor(current).toLocaleString() + '+';
+                } else {
+                    displayValue = Math.floor(current) + (target === 99 ? '%' : '+');
+                }
+                
+                element.textContent = displayValue;
+            }, 16);
+        }
+
+        function initStatsCounters() {
+            const statItems = document.querySelectorAll('.stat-item');
+            const observer = new IntersectionObserver((entries) => {
+                entries.forEach((entry) => {
+                    if (entry.isIntersecting) {
+                        const statNumber = entry.target.querySelector('.stat-number');
+                        const targetValue = parseInt(entry.target.dataset.count);
+                        
+                        setTimeout(() => {
+                            animateCounter(statNumber, targetValue);
+                        }, Math.random() * 500);
+                        
+                        observer.unobserve(entry.target);
+                    }
+                });
+            }, { threshold: 0.5 });
+
+            statItems.forEach((item) => observer.observe(item));
+        }
+
+        function initCTAButtons() {
+            const exploreBtn = document.getElementById('explore-locations-btn');
+            if (exploreBtn) {
+                exploreBtn.addEventListener('click', () => {
+                    document.querySelector('.nav-item[data-page="locations"]').click();
+                });
+            }
+            const learnMoreBtn = document.getElementById('learn-more-btn');
+            if (learnMoreBtn) {
+                learnMoreBtn.addEventListener('click', () => {
+                    document.querySelector('.features-section').scrollIntoView({ behavior: 'smooth' });
+                });
+            }
+            const getStartedBtn = document.getElementById('get-started-btn');
+            if (getStartedBtn) {
+                getStartedBtn.addEventListener('click', () => {
+                    document.querySelector('.nav-item[data-page="locations"]').click();
+                });
+            }
+        }
+
+        initStatsCounters();
+        initCTAButtons();
+    }
+    
+    // Attach event listeners that only need to be set once
+    navItems.forEach(item => item.addEventListener('click', handleNavClick));
+    startAddZoneBtn.addEventListener('click', () => setAddMode(true));
+    cancelAddZoneBtn.addEventListener('click', () => setAddMode(false));
+    addZoneForm.addEventListener('submit', handleAddZone);
+    createCollectionForm.addEventListener('submit', handleCreateCollection);
 });
